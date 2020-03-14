@@ -33,7 +33,7 @@ source1 = ColumnDataSource(data = {'t': t,'A': A})
 source2 = ColumnDataSource(data = {'t': t,'B': B})
 source3 = ColumnDataSource(data = {'t': t,'C': C })
 
-
+plot=figure()
 
 plot.line('t','A', source=source1, color = 'red')
 plot.line('t','B', source=source2, color = 'blue')
@@ -61,7 +61,7 @@ def callback(attr, old, new):
 input.on_change('value',callback)
 slider1.on_change('value', callback)
 slider2.on_change('value', callback)
-plot=figure()
+
 
 layout = column(widgetbox(slider1, slider2, input),plot)
 
