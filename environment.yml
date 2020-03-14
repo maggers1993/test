@@ -9,3 +9,4 @@ dependencies:
   - pip:
     - jupyter-server-proxy
     - nbserverproxy
+    - bokehserverextension
