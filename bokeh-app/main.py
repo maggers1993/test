@@ -1,89 +1,67 @@
-from os.path import join, dirname
-import datetime
-
-import pandas as pd
-from scipy.signal import savgol_filter
-
-from bokeh.io import curdoc
-from bokeh.layouts import row, column
-from bokeh.models import ColumnDataSource, DataRange1d, Select
-from bokeh.palettes import Blues4
+from bokeh.io import curdoc, show
+from bokeh.layouts import column, widgetbox
+from bokeh.models import ColumnDataSource, Slider, Button, TextInput
 from bokeh.plotting import figure
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
 
-STATISTICS = ['record_min_temp', 'actual_min_temp', 'average_min_temp', 'average_max_temp', 'actual_max_temp', 'record_max_temp']
+t= np.arange(0,3000,10) #t outside function
+def f(k1,k2,initial): #function to return the numpy array
+    def rxn(initial,t): #function for the differential equations
+        r1=k1*initial[0]
+        r2=k2*initial[1]
+        
+        dAdt=-r1
+        dBdt=r1-r2
+        dCdt=r2
+        
+        return [dAdt, dBdt,dCdt]
+    
+    x0=[1,0,0]
+    Conc = odeint(rxn, x0,t)
+    
+    return Conc
 
-def get_dataset(src, name, distribution):
-    df = src[src.airport == name].copy()
-    del df['airport']
-    df['date'] = pd.to_datetime(df.date)
-    # timedelta here instead of pd.DateOffset to avoid pandas bug < 0.18 (Pandas issue #11925)
-    df['left'] = df.date - datetime.timedelta(days=0.5)
-    df['right'] = df.date + datetime.timedelta(days=0.5)
-    df = df.set_index(['date'])
-    df.sort_index(inplace=True)
-    if distribution == 'Smoothed':
-        window, order = 51, 3
-        for key in STATISTICS:
-            df[key] = savgol_filter(df[key], window, order)
+Conc=f(0.01,0.005,[1,0,0]) #Assign variable conc to resutls from function, f(initial conditions)
 
-    return ColumnDataSource(data=df)
+A=Conc[:,0]
+B=Conc[:,1]
+C=Conc[:,2]
 
-def make_plot(source, title):
-    plot = figure(x_axis_type="datetime", plot_width=800, tools="", toolbar_location=None)
-    plot.title.text = title
+source1 = ColumnDataSource(data = {'t': t,'A': A})
+source2 = ColumnDataSource(data = {'t': t,'B': B})
+source3 = ColumnDataSource(data = {'t': t,'C': C })
 
-    plot.quad(top='record_max_temp', bottom='record_min_temp', left='left', right='right',
-              color=Blues4[2], source=source, legend="Record")
-    plot.quad(top='average_max_temp', bottom='average_min_temp', left='left', right='right',
-              color=Blues4[1], source=source, legend="Average")
-    plot.quad(top='actual_max_temp', bottom='actual_min_temp', left='left', right='right',
-              color=Blues4[0], alpha=0.5, line_color="black", source=source, legend="Actual")
+plot=figure()
 
-    # fixed attributes
-    plot.xaxis.axis_label = None
-    plot.yaxis.axis_label = "Temperature (F)"
-    plot.axis.axis_label_text_font_style = "bold"
-    plot.x_range = DataRange1d(range_padding=0.0)
-    plot.grid.grid_line_alpha = 0.3
+plot.line('t','A', source=source1, color = 'red')
+plot.line('t','B', source=source2, color = 'blue')
+plot.line('t','C', source=source3, color = 'black')
 
-    return plot
+slider1 = Slider(start = 0.001, end = 0.1, step = 0.001, value = 0.01, title = 'k1')
+slider2 = Slider(start = 0.0005, end = 0.05, step = 0.0005, value = 0.005, title = 'k2')
+input = TextInput(value = '0.1', title = 'Initial Concentration')
 
-def update_plot(attrname, old, new):
-    city = city_select.value
-    plot.title.text = "Weather data for " + cities[city]['title']
+def callback(attr, old, new):
+    k1 = slider1.value
+    k2 = slider2.value
+    A0 = float(input.value)
+    
+    new_conc=f(k1,k2,[A0,0,0])
+    
+    new_A=new_conc[:,0]
+    new_B=new_conc[:,1]
+    new_C=new_conc[:,2]
+    
+    source1.data={'t': t,'A': new_A}
+    source2.data={'t': t,'B': new_B}
+    source3.data={'t': t,'C': new_C}
+    
+input.on_change('value',callback)
+slider1.on_change('value', callback)
+slider2.on_change('value', callback)
 
-    src = get_dataset(df, cities[city]['airport'], distribution_select.value)
-    source.data.update(src.data)
+layout = column(widgetbox(slider1, slider2, input),plot)
 
-city = 'Austin'
-distribution = 'Discrete'
-
-cities = {
-    'Austin': {
-        'airport': 'AUS',
-        'title': 'Austin, TX',
-    },
-    'Boston': {
-        'airport': 'BOS',
-        'title': 'Boston, MA',
-    },
-    'Seattle': {
-        'airport': 'SEA',
-        'title': 'Seattle, WA',
-    }
-}
-
-city_select = Select(value=city, title='City', options=sorted(cities.keys()))
-distribution_select = Select(value=distribution, title='Distribution', options=['Discrete', 'Smoothed'])
-
-df = pd.read_csv(join(dirname(__file__), 'data/2015_weather.csv'))
-source = get_dataset(df, cities[city]['airport'], distribution)
-plot = make_plot(source, "Weather data for " + cities[city]['title'])
-
-city_select.on_change('value', update_plot)
-distribution_select.on_change('value', update_plot)
-
-controls = column(city_select, distribution_select)
-
-curdoc().add_root(row(plot, controls))
-curdoc().title = "Weather"
+curdoc().add_root(layout)
