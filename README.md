@@ -16,3 +16,5 @@ This repository demonstrates how to run a Bokeh server from within Binder. To do
    ```
    
 When people click on the Binder link, they should be directed to the running Bokeh app.
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/maggers1993/test/master)
