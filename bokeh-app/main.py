@@ -66,4 +66,3 @@ slider2.on_change('value', callback)
 layout = column(widgetbox(slider1, slider2, input),plot)
 
 curdoc().add_root(layout)
-curdoc().title= "Weather"
