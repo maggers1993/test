@@ -4,7 +4,8 @@ dependencies:
   - scipy
   - numpy
   - matplotlib
-  - nbserverproxy
+  - requests
   - pip
   - pip:
     - jupyter-server-proxy
+    - nbserverproxy
